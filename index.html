@@ -2,89 +2,48 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>漢字ポイント通帳 - バランス調整版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>漢字ポイント通帳 - GitHub版</title>
+    
     <script>
         // ★ここに最新のGAS URLを貼り付けてください★
         const ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbzO7Nlg9qP9G7SaeyR5ekNAEroJsNsjcF2PQQPzRBzMXGX9GXTJGiaouOJ4n6z5D4Eg/exec"; 
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
         :root { --primary: #2c3e50; --accent: #27ae60; --bg: #ffffff; }
-        body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 0; transition: background-color 0.8s; overflow-x: hidden; }
-        header { background: var(--primary); color: white; padding: 10px 20px; text-align: center; display: flex; justify-content: space-between; align-items: center; }
-        
-        .container { padding: 15px; max-width: 950px; margin: 0 auto; }
+        body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 0; transition: background-color 0.5s; }
+        header { background: var(--primary); color: white; padding: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .container { padding: 15px; max-width: 900px; margin: 0 auto; }
         .screen { display: none; } .active { display: block; }
-        
-        /* 児童入力画面のレイアウト調整 */
-        .input-layout {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        /* iPad以上の画面幅で横並びにする */
-        @media (min-width: 600px) {
-            .input-layout {
-                flex-direction: row;
-                align-items: stretch;
-            }
-            .input-layout > div {
-                flex: 1;
-                margin-bottom: 0;
-            }
-        }
-
-        .card { 
-            background: rgba(255, 255, 255, 0.9); 
-            padding: 20px; 
-            border-radius: 15px; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9rem; }
-        select, input { width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
-        
-        .btn { padding: 12px 25px; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; color: white; transition: 0.3s; }
-        .btn:active { transform: scale(0.98); }
-
-        .point-display { font-size: 3.5rem; color: #2c3e50; font-weight: bold; margin: 10px 0; }
-        .next-ticket { color: #555; font-size: 1rem; }
-        
-        #ticket-win { 
-            display: none; 
-            background: linear-gradient(135deg, #f1c40f, #f39c12); 
-            padding: 10px; 
-            border-radius: 10px; 
-            border: 2px dashed #fff; 
-            font-weight: bold; 
-            margin-top: 10px;
-            color: white;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
-        }
-
-        /* 教師用画面の設定 */
-        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 10px; }
-        .cal-day { aspect-ratio: 1; border: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; cursor: pointer; border-radius: 4px; background: white; }
+        .input-layout { display: flex; flex-wrap: wrap; gap: 15px; }
+        .card { background: rgba(255, 255, 255, 0.95); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); flex: 1 1 300px; min-height: 300px; display: flex; flex-direction: column; justify-content: center; }
+        .point-display { font-size: 3.5rem; color: #2c3e50; font-weight: bold; margin: 10px 0; text-align: center; }
+        .btn { padding: 12px; border: none; border-radius: 20px; font-weight: bold; cursor: pointer; color: white; font-size: 1.1rem; }
+        select, input { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
+        #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 2000; display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: bold; }
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+        .cal-day { aspect-ratio: 1; border: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; cursor: pointer; background: white; border-radius: 4px; }
         .has-data { background-color: #e8f5e9; border: 2px solid var(--accent); font-weight: bold; }
-        
-        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; background: white; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-        .low-score { background-color: #ffcccc; color: #cc0000; font-weight: bold; }
     </style>
 </head>
 <body>
 
+<div id="loading-overlay">
+    <div>📡 じゅんび中...</div>
+    <button onclick="location.reload()" style="margin-top:20px; padding:8px 15px;">なかなか進まない時はここをタッチ</button>
+</div>
+
 <header>
-    <div style="font-weight:bold; font-size: 1.1rem;">📝 漢字ポイント通帳</div>
+    <div style="font-weight:bold;">📝 漢字ポイント通帳</div>
     <div>
-        <button onclick="showScreen('input')" style="background:none; border:1px solid white; color:white; border-radius:15px; padding:5px 12px; cursor:pointer;">入力</button>
-        <button onclick="authTeacher()" style="background:#e74c3c; border:none; color:white; border-radius:15px; padding:5px 12px; margin-left:8px; cursor:pointer; font-weight:bold;">先生</button>
+        <button onclick="showScreen('input')" style="background:none; border:1px solid white; color:white; border-radius:15px; padding:6px 12px; cursor:pointer;">入力</button>
+        <button onclick="authTeacher()" style="background:#e74c3c; border:none; color:white; border-radius:15px; padding:6px 12px; font-weight:bold; margin-left:8px; cursor:pointer;">先生</button>
     </div>
 </header>
 
@@ -92,62 +51,60 @@
     <div id="screen-input" class="screen active">
         <div class="input-layout">
             <div class="card" style="text-align:center;">
-                <div id="current-name-display" style="font-size: 1rem; color: #666;">名前を選んでね</div>
-                <div class="point-display"><span id="total-pt">0</span> <small style="font-size: 1rem;">pt</small></div>
-                <div class="next-ticket" id="next-info">あと 100 pt でチケット！</div>
-                <div id="ticket-win">🎫 フリーチケット獲得中！</div>
+                <div id="display-name" style="color:#666;">なまえをえらんでね</div>
+                <div class="point-display"><span id="total-pt">0</span> <small style="font-size:1.2rem;">pt</small></div>
+                <div id="next-info" style="font-size:1rem; color:#555;">---</div>
+                <div id="ticket-win" style="display:none; background:#f1c40f; padding:10px; border-radius:10px; margin-top:15px; font-weight:bold; border:2px dashed #fff; color:white; text-shadow:1px 1px 2px rgba(0,0,0,0.2);">🎫 チケット獲得中！</div>
             </div>
 
             <div class="card">
-                <label>名前</label>
+                <label>なまえ</label>
                 <select id="student-name" onchange="updateView()"></select>
-                
-                <label>日付</label>
+                <label>ひにち</label>
                 <input type="date" id="test-date">
-                
-                <label>点数</label>
+                <label>てんすう</label>
                 <select id="test-score"></select>
-                
-                <button class="btn" style="background:var(--accent); width:100%; font-size:1.2rem;" onclick="saveData()">保存する</button>
+                <button class="btn" id="save-btn" style="background:var(--accent); width:100%;" onclick="saveData()">保存（ほぞん）する</button>
             </div>
         </div>
     </div>
 
     <div id="screen-teacher" class="screen">
-        <div class="card" style="margin-bottom: 15px;">
+        <div class="card">
             <h3 style="margin-top:0;">カレンダー（日付から見る）</h3>
-            <div id="cal-month-name" style="font-weight:bold; text-align:center; margin-bottom:5px;"></div>
+            <div id="cal-month-name" style="text-align:center; font-weight:bold; margin-bottom:5px;"></div>
             <div class="cal-grid" id="calendar-body"></div>
-            <div id="date-detail" style="margin-top:15px; display:none; border-top:1px solid #eee; padding-top:10px;">
-                <h4 id="selected-date-text" style="margin:5px 0;"></h4>
-                <table><thead><tr><th>名前</th><th>素点</th><th>累積</th></tr></thead><tbody id="date-table-body"></tbody></table>
+            <div id="date-detail" style="display:none; margin-top:15px; border-top:1px solid #eee; padding-top:10px;">
+                <h4 id="sel-date" style="margin:5px 0;"></h4>
+                <table>
+                    <thead><tr style="background:#f2f2f2;"><th>名前</th><th>素点</th><th>累積</th></tr></thead>
+                    <tbody id="date-table-body"></tbody>
+                </table>
             </div>
         </div>
-
-        <div class="card">
+        <div class="card" style="margin-top:15px;">
             <h3 style="margin-top:0;">個人の軌跡（児童から見る）</h3>
-            <select id="teacher-student-select" onchange="renderIndividualTrace()" style="margin-bottom:10px;"></select>
-            <div id="individual-trace">
-                <table><thead><tr><th>日付</th><th>素点</th></tr></thead><tbody id="trace-table-body"></tbody></table>
-            </div>
+            <select id="teacher-student-select" onchange="renderIndividualTrace()"></select>
+            <table>
+                <thead><tr style="background:#f2f2f2;"><th>日付</th><th>素点</th></tr></thead>
+                <tbody id="trace-table-body"></tbody>
+            </table>
         </div>
     </div>
 </div>
 
 <script>
+    // --- JavaScriptの開始 ---
     let names = []; let pointsMap = {}; let historyData = [];
-    let myHistory = JSON.parse(localStorage.getItem('kanji_simple_history') || '[]');
+    const overlay = document.getElementById('loading-overlay');
 
-    // 初期化
+    // 初期化設定
     document.getElementById('test-date').value = new Date().toISOString().split('T')[0];
     const scoreSelect = document.getElementById('test-score');
-    for(let i=20; i>=0; i--) {
-        const opt = document.createElement('option');
-        opt.value = i; opt.textContent = i + "点";
-        scoreSelect.appendChild(opt);
-    }
+    for(let i=20; i>=0; i--) scoreSelect.insertAdjacentHTML('beforeend', `<option value="${i}">${i}点</option>`);
 
-    async function init() {
+    // アプリ起動
+    async function initApp() {
         try {
             const res = await fetch(ENDPOINT_URL);
             const data = await res.json();
@@ -155,44 +112,114 @@
             
             const selects = [document.getElementById('student-name'), document.getElementById('teacher-student-select')];
             selects.forEach(s => {
-                s.innerHTML = '<option value="">-- 選択 --</option>';
+                s.innerHTML = '<option value="">-- えらぶ --</option>';
                 names.forEach(n => s.insertAdjacentHTML('beforeend', `<option value="${n}">${n}</option>`));
             });
-        } catch (e) { console.error("データ取得エラー", e); }
+            overlay.style.display = 'none'; // 通信成功でオーバーレイを消す
+        } catch (e) {
+            console.error(e);
+            overlay.innerHTML = '<div>❌ つうしんエラー</div><div style="font-size:0.8rem; margin:10px;">GitHub PagesのURLで開いていますか？</div><button onclick="location.reload()">もういちど試す</button>';
+        }
+    }
+
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        const target = document.getElementById('screen-' + id);
+        if(target) target.classList.add('active');
     }
 
     function updateView() {
         const name = document.getElementById('student-name').value;
         if(!name) {
-            document.getElementById('current-name-display').innerText = "名前を選んでね";
             document.getElementById('total-pt').innerText = "0";
-            document.body.style.backgroundColor = "#ffffff";
+            document.body.style.backgroundColor = "#fff";
             return;
         }
         const pt = pointsMap[name] || 0;
         const progress = pt % 100;
-        document.getElementById('current-name-display').innerText = name + " の累積";
+        document.getElementById('display-name').innerText = name + " の累積ポイント";
         document.getElementById('total-pt').innerText = pt;
         
-        // 背景色
-        const lightness = 100 - (progress * 0.3); 
-        document.body.style.backgroundColor = `hsl(145, 40%, ${lightness}%)`;
+        const lightness = 100 - (progress * 0.35); 
+        document.body.style.backgroundColor = `hsl(145, 45%, ${lightness}%)`;
         
         const next = 100 - progress;
-        document.getElementById('next-info').innerText = (progress === 0 && pt > 0) ? "100ポイント達成！" : `あと ${next} pt でチケット！`;
+        document.getElementById('next-info').innerText = (progress === 0 && pt > 0) ? "おめでとう！達成！" : `あと ${next} pt でチケット！`;
         document.getElementById('ticket-win').style.display = pt >= 100 ? 'block' : 'none';
     }
 
     async function saveData() {
+        const saveBtn = document.getElementById('save-btn');
+        const name = document.getElementById('student-name').value;
+        if(!name) return alert("名前をえらんでね");
+
+        saveBtn.disabled = true;
+        saveBtn.innerText = "保存中...";
+
         const payload = { 
-            name: document.getElementById('student-name').value, 
+            name: name, 
             score: Number(document.getElementById('test-score').value), 
             date: document.getElementById('test-date').value 
         };
-        if(!payload.name) return alert("名前を選んでください");
 
         try {
             const res = await fetch(ENDPOINT_URL, { method: 'POST', body: JSON.stringify(payload) });
             const result = await res.json();
             
-            // 紙吹雪演出（100点
+            const oldTotal = pointsMap[name] || 0;
+            if (Math.floor(result.newTotal / 100) > Math.floor(oldTotal / 100)) {
+                confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                alert("すごすぎる！チケット獲得！");
+            }
+            location.reload();
+        } catch (e) {
+            alert("保存に失敗しました。電波の良いところで試してね。");
+            saveBtn.disabled = false;
+            saveBtn.innerText = "保存する";
+        }
+    }
+
+    function authTeacher() {
+        if(prompt("パスワード") === "sensei") {
+            showScreen('teacher');
+            renderCalendar();
+        } else {
+            alert("パスワードが違います");
+        }
+    }
+
+    function renderCalendar() {
+        const calBody = document.getElementById('calendar-body'); calBody.innerHTML = '';
+        const now = new Date(); const year = now.getFullYear(); const month = now.getMonth();
+        document.getElementById('cal-month-name').innerText = `${year}年 ${month + 1}月`;
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        for (let i = 0; i < firstDay; i++) calBody.insertAdjacentHTML('beforeend', '<div></div>');
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const has = historyData.some(h => h[0] === dStr);
+            const el = document.createElement('div');
+            el.className = `cal-day ${has ? 'has-data' : ''}`;
+            el.innerText = d;
+            el.onclick = () => {
+                const results = historyData.filter(h => h[0] === dStr);
+                const detail = document.getElementById('date-detail');
+                detail.style.display = 'block';
+                document.getElementById('sel-date').innerText = dStr + " の記録";
+                document.getElementById('date-table-body').innerHTML = results.map(r => `<tr><td>${r[1]}</td><td style="${r[2]<=17?'color:red;font-weight:bold;':''}">${r[2]}</td><td>${pointsMap[r[1]]||'-'}</td></tr>`).join('');
+            };
+            calBody.appendChild(el);
+        }
+    }
+
+    function renderIndividualTrace() {
+        const name = document.getElementById('teacher-student-select').value;
+        const personal = historyData.filter(h => h[1] === name);
+        document.getElementById('trace-table-body').innerHTML = personal.reverse().map(r => `<tr><td>${r[0]}</td><td style="${r[2]<=17?'color:red;font-weight:bold;':''}">${r[2]}点</td></tr>`).join('');
+    }
+
+    // 起動！
+    window.onload = initApp;
+</script>
+</body>
+</html>
