@@ -1,141 +1,177 @@
-<!DOCTYPE hatml>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>漢字書き取りマスター - 軽量・高精度版</title>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>漢字ポイント通帳</title>
     <script>
-        // ★ここにGASのURLを貼り付けてください★
-        const ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbyZIA2miVhnOC09PNyGvSpuFbnk3q-jn-cwqdj1eokspylzxV-1qevOElarNhxlsSrR/exec"; 
+        // ★ここにGASの最新URLを貼り付けてください★
+        const ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbzO7Nlg9qP9G7SaeyR5ekNAEroJsNsjcF2PQQPzRBzMXGX9GXTJGiaouOJ4n6z5D4Eg/exec"; 
     </script>
-
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-
     <style>
-        :root { --primary-color: #4CAF50; --accent-color: #FF9800; --bg-color: #F0F4F8; }
-        body { font-family: sans-serif; background-color: var(--bg-color); margin: 0; padding: 0; overscroll-behavior: none; }
-        header { background: var(--primary-color); color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
-        nav button { background: rgba(255,255,255,0.2); border: 2px solid white; color: white; padding: 6px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; }
-        .container { padding: 10px; max-width: 1200px; margin: 0 auto; }
+        :root { --primary: #2c3e50; --accent: #27ae60; --bg: #f4f7f6; }
+        body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 0; }
+        header { background: var(--primary); color: white; padding: 15px; text-align: center; display: flex; justify-content: space-between; align-items: center; }
+        .container { padding: 20px; max-width: 600px; margin: 0 auto; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
         .screen { display: none; } .active { display: block; }
-        .test-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
-        .kanji-card { background: white; border: 2px solid #ddd; border-radius: 12px; padding: 10px; text-align: center; }
-        .question-text { font-size: 1.2rem; margin-bottom: 8px; font-weight: bold; color: #333; }
-        canvas { border: 2px solid #eee; background: #fafafa; width: 100%; aspect-ratio: 1/1; border-radius: 8px; touch-action: none; }
-        .judge-btns { display: flex; justify-content: space-around; margin-top: 8px; }
-        .btn-o, .btn-x { font-size: 1.4rem; width: 45px; height: 45px; border-radius: 50%; border: 2px solid #ccc; background: white; cursor: pointer; }
-        .btn-o.selected { background: #F44336; color: white; border-color: #F44336; }
-        .btn-x.selected { background: #2196F3; color: white; border-color: #2196F3; }
-        .bottom-controls { margin-top: 25px; background: white; padding: 15px 25px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; position: sticky; bottom: 10px; z-index: 90; }
-        .main-btn { padding: 12px 30px; font-weight: bold; border-radius: 25px; border: none; cursor: pointer; color: white; }
-        .point-badge { background: #e74c3c; color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; margin-left: 10px; }
-        #ticket-area { display: none; background: linear-gradient(135deg, #ffd700, #ffa500); padding: 15px; border-radius: 15px; border: 4px dashed #fff; text-align: center; margin-top: 10px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select { width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 25px; font-size: 1.1rem; font-weight: bold; cursor: pointer; color: white; transition: 0.3s; }
+        .btn-save { background: var(--accent); }
+        .btn-teacher { background: #e74c3c; padding: 5px 15px; font-size: 0.8rem; width: auto; }
+        .status-box { text-align: center; }
+        .point-display { font-size: 2.5rem; color: var(--accent); font-weight: bold; margin: 10px 0; }
+        .next-ticket { color: #7f8c8d; font-size: 1.1rem; }
+        #ticket-win { display: none; background: #f1c40f; padding: 15px; border-radius: 10px; border: 3px dashed #fff; margin-top: 15px; animation: blink 1s infinite; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+        th { background: #eee; }
     </style>
 </head>
 <body>
 
 <header>
-    <div style="font-weight: bold;">📝 漢字マスター</div>
-    <nav>
-        <button onclick="showScreen('test')">テスト</button>
-        <button onclick="showScreen('stats')">グラフ</button>
-        <button onclick="authTeacher()" style="background:#e74c3c;">先生用</button>
-    </nav>
+    <div style="font-weight:bold;">漢字ポイント通帳</div>
+    <div>
+        <button onclick="showScreen('input')" style="background:none; border:1px solid white; color:white; border-radius:15px; padding:5px 10px;">入力</button>
+        <button onclick="showScreen('stats')" style="background:none; border:1px solid white; color:white; border-radius:15px; padding:5px 10px;">グラフ</button>
+        <button onclick="authTeacher()" class="btn-teacher">先生</button>
+    </div>
 </header>
 
 <div class="container">
-    <div id="screen-test" class="screen active">
-        <div style="margin-bottom:15px; display: flex; align-items: center;">
-            名前: <select id="student-name" onchange="updatePersonalPoint()">
-                <option value="">-- 名前を選択 --</option>
-            </select>
-            <span id="current-point-display" class="point-badge">0 pt</span>
-            <span id="loading-status" style="margin-left: 10px; font-size: 0.9rem; font-weight: bold; color: #d35400;">読込中...</span>
+    <div id="screen-input" class="screen active">
+        <div class="card status-box">
+            <div id="current-name-display">名前を選んでね</div>
+            <div class="point-display"><span id="total-pt">0</span> pt</div>
+            <div class="next-ticket" id="next-info">あと 100 pt でチケット！</div>
+            <div id="ticket-win">🎫 フリーパス券獲得！ 🎫</div>
         </div>
-        <div id="ticket-area"><h2>🎫 フリーチケット獲得！</h2><p>先生に見せてね！</p></div>
-        <div class="test-grid" id="kanji-grid"></div>
-        <div class="bottom-controls">
-            <button class="main-btn" style="background:#999" onclick="confirmReset()">全消し</button>
-            <div style="font-size: 1.2rem; font-weight: bold;">得点: <span id="current-total">0</span> / <span id="max-q">--</span></div>
-            <button class="main-btn" style="background:var(--accent-color)" onclick="finishTest()">保存</button>
+
+        <div class="card">
+            <label>1. 名前</label>
+            <select id="student-name" onchange="updateView()"></select>
+            
+            <label>2. テストの日付</label>
+            <input type="date" id="test-date">
+            
+            <label>3. 点数 (20点満点)</label>
+            <input type="number" id="test-score" min="0" max="20" placeholder="点数を入力">
+            
+            <button class="btn btn-save" onclick="saveData()">ポイントを貯める！</button>
         </div>
     </div>
-    <div id="screen-stats" class="screen"><h2>成績推移</h2><canvas id="scoreChart" style="background:white; padding:15px; border-radius:12px;"></canvas></div>
-    <div id="screen-teacher" class="screen"><h2>累積ポイント一覧</h2><table id="teacher-table" style="width:100%; border-collapse: collapse; background:white;"><thead style="background:#eee;"><tr><th>名前</th><th>pt</th><th>状況</th></tr></thead><tbody id="teacher-table-body"></tbody></table></div>
-</div>
 
-<div id="celebration-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); display:none; flex-direction:column; justify-content:center; align-items:center; color:white; z-index:1000;" onclick="this.style.display='none'">
-    <h1>合格！</h1><p id="msg-body" style="font-size: 2rem;"></p>
+    <div id="screen-stats" class="screen">
+        <div class="card">
+            <h3>これまでの成績</h3>
+            <canvas id="scoreChart"></canvas>
+        </div>
+    </div>
+
+    <div id="screen-teacher" class="screen">
+        <div class="card">
+            <h3>児童の累積ポイント</h3>
+            <table>
+                <thead><tr><th>名前</th><th>累積</th><th>状況</th></tr></thead>
+                <tbody id="teacher-list"></tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
 <script>
-    let questions = []; let pads = []; let scores = []; let pointsMap = {}; let allPointsData = [];
-    let myHistory = JSON.parse(localStorage.getItem('kanji_history') || '[]');
+    let names = []; let pointsMap = {}; let allPoints = [];
+    let myHistory = JSON.parse(localStorage.getItem('kanji_simple_history') || '[]');
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('test-date').value = today;
 
-    async function initApp() {
-        const status = document.getElementById('loading-status');
+    async function init() {
         try {
-            const response = await fetch(ENDPOINT_URL);
-            const data = await response.json();
-            pointsMap = data.pointsMap; allPointsData = data.allPoints; questions = data.questions;
+            const res = await fetch(ENDPOINT_URL);
+            const data = await res.json();
+            names = data.names; pointsMap = data.pointsMap; allPoints = data.allPoints;
             const select = document.getElementById('student-name');
-            data.names.forEach(name => {
+            select.innerHTML = '<option value="">-- 名前を選択 --</option>';
+            names.forEach(n => {
                 const opt = document.createElement('option');
-                opt.value = name; opt.textContent = name; select.appendChild(opt);
+                opt.value = n; opt.textContent = n; select.appendChild(opt);
             });
-            scores = new Array(questions.length).fill(null);
-            document.getElementById('max-q').innerText = questions.length;
-            renderTest(); // 描画開始
-            status.innerText = "✅ OK";
-        } catch (e) { status.innerText = "❌ 接続失敗"; }
+        } catch (e) { alert("データの読み込みに失敗しました"); }
     }
 
-    // ズレを防止しつつ、負荷を抑える初期化
-    function setupPad(canvas, index) {
-        const dpr = window.devicePixelRatio || 1;
-        const rect = canvas.getBoundingClientRect();
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
-        const ctx = canvas.getContext('2d');
-        ctx.scale(dpr, dpr);
-        pads[index] = new SignaturePad(canvas, { minWidth: 1.5, maxWidth: 4, penColor: "black" });
-    }
-
-    async function renderTest() {
-        const grid = document.getElementById('kanji-grid');
-        grid.innerHTML = '';
-        pads = [];
-        for (let i = 0; i < questions.length; i++) {
-            const card = document.createElement('div');
-            card.className = 'kanji-card';
-            card.innerHTML = `<div class="question-text">${i+1}. ${questions[i]}</div><canvas id="canvas-${i}"></canvas>
-                <div class="judge-btns">
-                    <button class="btn-o" id="o-${i}" onclick="judge(${i},1)">○</button>
-                    <button class="btn-x" id="x-${i}" onclick="judge(${i},0)">×</button>
-                </div>`;
-            grid.appendChild(card);
-            // わずかなディレイを挟んでブラウザのフリーズを防ぐ
-            await new Promise(r => setTimeout(r, 30)); 
-            setupPad(document.getElementById(`canvas-${i}`), i);
-        }
-    }
-
-    function judge(i, v) {
-        scores[i] = v;
-        document.getElementById(`o-${i}`).classList.toggle('selected', v === 1);
-        document.getElementById(`x-${i}`).classList.toggle('selected', v === 0);
-        document.getElementById('current-total').innerText = scores.filter(s => s === 1).length;
-    }
-
-    function updatePersonalPoint() {
+    function updateView() {
         const name = document.getElementById('student-name').value;
+        if(!name) return;
         const pt = pointsMap[name] || 0;
-        document.getElementById('current-point-display').innerText = pt + " pt";
-        document.getElementById('ticket-area').style.display = (pt >= 100) ? 'block' : 'none';
+        document.getElementById('current-name-display').innerText = name + " の累積ポイント";
+        document.getElementById('total-pt').innerText = pt;
+        
+        const next = 100 - pt;
+        document.getElementById('next-info').innerText = next > 0 ? `あと ${next} pt でチケット！` : "100ポイント達成！";
+        document.getElementById('ticket-win').style.display = pt >= 100 ? 'block' : 'none';
     }
 
-    async function finishTest() {
-        const total = scores.filter(s => s === 1).length;
+    async function saveData() {
+        const name = document.getElementById('student-name').value;
+        const score = document.getElementById('test-score').value;
+        const date = document.getElementById('test-date').value;
+
+        if(!name || score === "" || !date) return alert("全部入力してね！");
+        if(score < 0 || score > 20) return alert("点数は0〜20の間で入力してね");
+
+        const payload = { name, score: Number(score), date };
+        
+        try {
+            const res = await fetch(ENDPOINT_URL, { method: 'POST', body: JSON.stringify(payload) });
+            const result = await res.json();
+            
+            // ローカル保存
+            myHistory.push(payload);
+            localStorage.setItem('kanji_simple_history', JSON.stringify(myHistory));
+
+            if(result.newTotal >= 100 && pointsMap[name] < 100) {
+                confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                alert("おめでとう！100ポイント達成！");
+            } else {
+                alert(score + "ポイント貯まりました！");
+            }
+            location.reload();
+        } catch (e) { alert("保存に失敗しました"); }
+    }
+
+    function authTeacher() {
+        if(prompt("パスワード") === "snsei") {
+            showScreen('teacher');
+            const tbody = document.getElementById('teacher-list');
+            tbody.innerHTML = allPoints.map(p => `<tr><td>${p.name}</td><td>${p.point}</td><td>${p.point>=100?'🎫獲得':(100-p.point)+'点'}</td></tr>`).join('');
+        } else { alert("パスワードが違います"); }
+    }
+
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById('screen-' + id).classList.add('active');
+        if(id === 'stats') renderChart();
+    }
+
+    function renderChart() {
+        const ctx = document.getElementById('scoreChart').getContext('2d');
+        if(window.myChart) window.myChart.destroy();
+        window.myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: myHistory.map(h => h.date),
+                datasets: [{ label: '点数', data: myHistory.map(h => h.score), borderColor: '#27ae60', tension: 0.3 }]
+            },
+            options: { scales: { y: { min: 0, max: 20 } } }
+        });
+    }
+
+    window.onload = init;
+</script>
+</body>
+</html>
