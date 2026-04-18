@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>漢字書き取りマスター - 6年生</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #4CAF50;
+            --accent-color: #FF9800;
+            --bg-color: #F0F4F8;
+            --card-bg: #FFFFFF;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0; padding: 0;
+            overscroll-behavior: none;
+        }
+
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        nav button {
+            background: rgba(255,255,255,0.2);
+            border: 2px solid white;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-left: 5px;
+        }
+
+        .container { padding: 15px; max-width: 1180px; margin: 0 auto; }
+        .screen { display: none; }
+        .screen.active { display: block; }
+
+        /* 漢字テストグリッド (2段レイアウトを意識) */
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+        }
+
+        .kanji-card {
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 12px;
+            padding: 8px;
+            text-align: center;
+        }
+
+        .question-text {
+            font-size: 1.2rem;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #444;
+            min-height: 1.5em;
+        }
+
+        canvas {
+            border: 1px solid #eee;
+            background-color: #fafafa;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            touch-action: none;
+            border-radius: 4px;
+        }
+
+        .judge-btns {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 8px;
+        }
+
+        .btn-o, .btn-x {
+            font-size: 1.4rem;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            border: 2px solid #ccc;
+            background: white;
+            cursor: pointer;
+        }
+
+        .btn-o.selected { background: #F44336; color: white; border-color: #F44336; }
+        .btn-x.selected { background: #2196F3; color: white; border-color: #2196F3; }
+
+        .bottom-controls {
+            margin-top: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .main-btn {
+            padding: 12px 35px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 25px;
+            border: none;
+            cursor: pointer;
+            color: white;
+        }
+
+        /* モーダル演出 */
+        #celebration-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div style="font-size: 1.2rem; font-weight: bold;">📝 漢字書き取りマスター</div>
+    <nav>
+        <button onclick="showScreen('test')">テスト</button>
+        <button onclick="showScreen('stats')">成績</button>
+    </nav>
+</header>
+
+<div class="container">
+    <div id="screen-test" class="screen active">
+        <div style="margin-bottom:15px; display: flex; align-items: center; gap: 10px;">
+            <span>名前: <input type="text" id="student-name" style="font-size: 1rem; padding: 5px;" value="テスト 太郎"></span>
+            <span id="loading-msg" style="color: var(--accent-color); font-weight: bold;">問題を読み込み中...</span>
+        </div>
+        
+        <div class="test-grid" id="kanji-grid">
+            </div>
+
+        <div class="bottom-controls">
+            <button class="main-btn" style="background: #999;" onclick="confirmReset()">全部消す</button>
+            <div style="font-size: 1.4rem; font-weight: bold;">
+                得点: <span id="current-total">0</span> / <span id="max-questions">20</span>
+            </div>
+            <button class="main-btn" style="background: var(--accent-color);" onclick="finishTest()">保存する</button>
+        </div>
+    </div>
+
+    <div id="screen-stats" class="screen">
+        <h2>じぶんの成績グラフ</h2>
+        <div style="background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+            <canvas id="scoreChart"></canvas>
+        </div>
+        <div style="background: white; padding: 20px; border-radius: 12px;">
+            <h3>最近の記録</h3>
+            <ul id="score-list"></ul>
+        </div>
+    </div>
+</div>
+
+<div id="celebration-overlay" onclick="this.style.display='none'">
+    <h1 id="msg-title">合格！</h1>
+    <p id="msg-body" style="font-size: 1.5rem;"></p>
+    <p>（画面をタッチして閉じる）</p>
+</div>
+
+<script>
+    // ==========================================
+    // 1. 設定：ここにGASのURLを貼り付けてください
+    // ==========================================
+    const ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbxzLrMRTsfJLRefBapIGjVRgP14lZq2xol-EUQjg8AA7x9qOUC_lFhQLpCRnWFi4M1h/exec";
+
+    // ==========================================
+    // アプリのロジック
+    // ==========================================
+    let questions = ["読み込み中..."]; // デフォルト
+    let pads = [];
+    let scores = [];
+    let myHistory = JSON.parse(localStorage.getItem('kanji_history') || '[]');
+
+    // 起動時にスプレッドシートから問題を読み込む
+    async function loadQuestionsFromServer() {
+        const loadingMsg = document.getElementById('loading-msg');
+        try {
+            const response = await fetch(ENDPOINT_URL);
+            if (!response.ok) throw new Error('通信エラー');
+            const data = await response.json();
+            
+            if (data && data.length > 0) {
+                questions = data;
+                loadingMsg.innerText = "✅ 問題を更新しました";
+            } else {
+                loadingMsg.innerText = "⚠️ 問題リストが空です";
+            }
+        } catch (e) {
+            console.error(e);
+            loadingMsg.innerText = "❌ 読み込み失敗（既定の問題を使用）";
+            questions = ["太陽","公園","希望","卒業","未来","平和","健康","努力","成功","感謝","親切","誠実","責任","自由","理想","交流","技術","発展","幸福","勇気"];
+        } finally {
+            scores = new Array(questions.length).fill(null);
+            document.getElementById('max-questions').innerText = questions.length;
+            renderTest();
+            // 3秒後にメッセージを消す
+            setTimeout(() => loadingMsg.style.opacity = '0', 3000);
+        }
+    }
+
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(`screen-${id}`).classList.add('active');
+        if(id === 'stats') renderStats();
+    }
+
+    function renderTest() {
+        const grid = document.getElementById('kanji-grid');
+        grid.innerHTML = '';
+        pads = [];
+
+        questions.forEach((q, i) => {
+            const card = document.createElement('div');
+            card.className = 'kanji-card';
+            card.innerHTML = `
+                <div class="question-text">${i + 1}. ${q}</div>
+                <canvas id="canvas-${i}"></canvas>
+                <div class="judge-btns">
+                    <button class="btn-o" id="btn-o-${i}" onclick="judge(${i}, 1)">○</button>
+                    <button class="btn-x" id="btn-x-${i}" onclick="judge(${i}, 0)">×</button>
+                </div>
+            `;
+            grid.appendChild(card);
+
+            const canvas = document.getElementById(`canvas-${i}`);
+            const pad = new SignaturePad(canvas, {
+                minWidth: 2,
+                maxWidth: 4,
+                penColor: "black"
+            });
+            pads[i] = pad;
+        });
+    }
+
+    function judge(index, val) {
+        scores[index] = val;
+        // UI更新
+        document.getElementById(`btn-o-${index}`).classList.toggle('selected', val === 1);
+        document.getElementById(`btn-x-${index}`).classList.toggle('selected', val === 0);
+        // 合計計算
+        const total = scores.filter(s => s === 1).length;
+        document.getElementById('current-total').innerText = total;
+    }
+
+    function confirmReset() {
+        if(confirm("書いた文字と採点をすべて消しますか？")) {
+            scores.fill(null);
+            pads.forEach(p => p.clear());
+            document.querySelectorAll('.btn-o, .btn-x').forEach(b => b.classList.remove('selected'));
+            document.getElementById('current-total').innerText = "0";
+        }
+    }
+
+    async function finishTest() {
+        const total = scores.filter(s => s === 1).length;
+        const name = document.getElementById('student-name').value;
+        
+        if (scores.includes(null)) {
+            alert("まだ採点していない問題があります！");
+            return;
+        }
+
+        // 保存用データ
+        const result = {
+            date: new Date().toLocaleDateString(),
+            score: total,
+            name: name
+        };
+
+        // ローカル保存
+        myHistory.push(result);
+        localStorage.setItem('kanji_history', JSON.stringify(myHistory));
+
+        // 演出
+        const passScore = Math.ceil(questions.length * 0.9); // 9割以上で合格
+        if (total >= passScore) {
+            document.getElementById('msg-title').innerText = "合格！おめでとう！";
+            document.getElementById('msg-body').innerText = `${questions.length}点満点中 ${total}点でした！`;
+            document.getElementById('celebration-overlay').style.display = 'flex';
+            confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+        } else {
+            alert(`テスト終了！得点は ${total} 点でした。`);
+        }
+
+        // GASへ送信
+        try {
+            await fetch(ENDPOINT_URL, {
+                method: 'POST',
+                body: JSON.stringify(result)
+            });
+            console.log("送信成功");
+        } catch (e) {
+            console.error("送信失敗", e);
+        }
+
+        showScreen('stats');
+    }
+
+    // 成績グラフの描画
+    let scoreChart;
+    function renderStats() {
+        const ctx = document.getElementById('scoreChart').getContext('2d');
+        const labels = myHistory.slice(-10).map(h => h.date);
+        const data = myHistory.slice(-10).map(h => h.score);
+
+        const list = document.getElementById('score-list');
+        list.innerHTML = myHistory.slice(-5).reverse()
+            .map(h => `<li>${h.date}: <strong>${h.score}</strong>点</li>`).join('');
+
+        if (scoreChart) scoreChart.destroy();
+        scoreChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '得点の推移',
+                    data: data,
+                    borderColor: '#4CAF50',
+                    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                scales: { y: { min: 0, max: questions.length } }
+            }
+        });
+    }
+
+    // 起動時に実行
+    window.onload = loadQuestionsFromServer;
+</script>
+
+</body>
+</html>
