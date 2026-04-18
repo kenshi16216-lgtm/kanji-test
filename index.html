@@ -3,175 +3,196 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>漢字ポイント通帳</title>
+    <title>漢字ポイント通帳 - バランス調整版</title>
     <script>
-        // ★ここにGASの最新URLを貼り付けてください★
+        // ★ここに最新のGAS URLを貼り付けてください★
         const ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbzO7Nlg9qP9G7SaeyR5ekNAEroJsNsjcF2PQQPzRBzMXGX9GXTJGiaouOJ4n6z5D4Eg/exec"; 
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
-        :root { --primary: #2c3e50; --accent: #27ae60; --bg: #f4f7f6; }
-        body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 0; }
-        header { background: var(--primary); color: white; padding: 15px; text-align: center; display: flex; justify-content: space-between; align-items: center; }
-        .container { padding: 20px; max-width: 600px; margin: 0 auto; }
-        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        :root { --primary: #2c3e50; --accent: #27ae60; --bg: #ffffff; }
+        body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 0; transition: background-color 0.8s; overflow-x: hidden; }
+        header { background: var(--primary); color: white; padding: 10px 20px; text-align: center; display: flex; justify-content: space-between; align-items: center; }
+        
+        .container { padding: 15px; max-width: 950px; margin: 0 auto; }
         .screen { display: none; } .active { display: block; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input, select { width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 25px; font-size: 1.1rem; font-weight: bold; cursor: pointer; color: white; transition: 0.3s; }
-        .btn-save { background: var(--accent); }
-        .btn-teacher { background: #e74c3c; padding: 5px 15px; font-size: 0.8rem; width: auto; }
-        .status-box { text-align: center; }
-        .point-display { font-size: 2.5rem; color: var(--accent); font-weight: bold; margin: 10px 0; }
-        .next-ticket { color: #7f8c8d; font-size: 1.1rem; }
-        #ticket-win { display: none; background: #f1c40f; padding: 15px; border-radius: 10px; border: 3px dashed #fff; margin-top: 15px; animation: blink 1s infinite; }
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
-        th { background: #eee; }
+        
+        /* 児童入力画面のレイアウト調整 */
+        .input-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        /* iPad以上の画面幅で横並びにする */
+        @media (min-width: 600px) {
+            .input-layout {
+                flex-direction: row;
+                align-items: stretch;
+            }
+            .input-layout > div {
+                flex: 1;
+                margin-bottom: 0;
+            }
+        }
+
+        .card { 
+            background: rgba(255, 255, 255, 0.9); 
+            padding: 20px; 
+            border-radius: 15px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9rem; }
+        select, input { width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
+        
+        .btn { padding: 12px 25px; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; color: white; transition: 0.3s; }
+        .btn:active { transform: scale(0.98); }
+
+        .point-display { font-size: 3.5rem; color: #2c3e50; font-weight: bold; margin: 10px 0; }
+        .next-ticket { color: #555; font-size: 1rem; }
+        
+        #ticket-win { 
+            display: none; 
+            background: linear-gradient(135deg, #f1c40f, #f39c12); 
+            padding: 10px; 
+            border-radius: 10px; 
+            border: 2px dashed #fff; 
+            font-weight: bold; 
+            margin-top: 10px;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+
+        /* 教師用画面の設定 */
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 10px; }
+        .cal-day { aspect-ratio: 1; border: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; cursor: pointer; border-radius: 4px; background: white; }
+        .has-data { background-color: #e8f5e9; border: 2px solid var(--accent); font-weight: bold; }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; background: white; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        .low-score { background-color: #ffcccc; color: #cc0000; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <header>
-    <div style="font-weight:bold;">漢字ポイント通帳</div>
+    <div style="font-weight:bold; font-size: 1.1rem;">📝 漢字ポイント通帳</div>
     <div>
-        <button onclick="showScreen('input')" style="background:none; border:1px solid white; color:white; border-radius:15px; padding:5px 10px;">入力</button>
-        <button onclick="showScreen('stats')" style="background:none; border:1px solid white; color:white; border-radius:15px; padding:5px 10px;">グラフ</button>
-        <button onclick="authTeacher()" class="btn-teacher">先生</button>
+        <button onclick="showScreen('input')" style="background:none; border:1px solid white; color:white; border-radius:15px; padding:5px 12px; cursor:pointer;">入力</button>
+        <button onclick="authTeacher()" style="background:#e74c3c; border:none; color:white; border-radius:15px; padding:5px 12px; margin-left:8px; cursor:pointer; font-weight:bold;">先生</button>
     </div>
 </header>
 
 <div class="container">
     <div id="screen-input" class="screen active">
-        <div class="card status-box">
-            <div id="current-name-display">名前を選んでね</div>
-            <div class="point-display"><span id="total-pt">0</span> pt</div>
-            <div class="next-ticket" id="next-info">あと 100 pt でチケット！</div>
-            <div id="ticket-win">🎫 フリーパス券獲得！ 🎫</div>
-        </div>
+        <div class="input-layout">
+            <div class="card" style="text-align:center;">
+                <div id="current-name-display" style="font-size: 1rem; color: #666;">名前を選んでね</div>
+                <div class="point-display"><span id="total-pt">0</span> <small style="font-size: 1rem;">pt</small></div>
+                <div class="next-ticket" id="next-info">あと 100 pt でチケット！</div>
+                <div id="ticket-win">🎫 フリーチケット獲得中！</div>
+            </div>
 
-        <div class="card">
-            <label>1. 名前</label>
-            <select id="student-name" onchange="updateView()"></select>
-            
-            <label>2. テストの日付</label>
-            <input type="date" id="test-date">
-            
-            <label>3. 点数 (20点満点)</label>
-            <input type="number" id="test-score" min="0" max="20" placeholder="点数を入力">
-            
-            <button class="btn btn-save" onclick="saveData()">ポイントを貯める！</button>
-        </div>
-    </div>
-
-    <div id="screen-stats" class="screen">
-        <div class="card">
-            <h3>これまでの成績</h3>
-            <canvas id="scoreChart"></canvas>
+            <div class="card">
+                <label>名前</label>
+                <select id="student-name" onchange="updateView()"></select>
+                
+                <label>日付</label>
+                <input type="date" id="test-date">
+                
+                <label>点数</label>
+                <select id="test-score"></select>
+                
+                <button class="btn" style="background:var(--accent); width:100%; font-size:1.2rem;" onclick="saveData()">保存する</button>
+            </div>
         </div>
     </div>
 
     <div id="screen-teacher" class="screen">
+        <div class="card" style="margin-bottom: 15px;">
+            <h3 style="margin-top:0;">カレンダー（日付から見る）</h3>
+            <div id="cal-month-name" style="font-weight:bold; text-align:center; margin-bottom:5px;"></div>
+            <div class="cal-grid" id="calendar-body"></div>
+            <div id="date-detail" style="margin-top:15px; display:none; border-top:1px solid #eee; padding-top:10px;">
+                <h4 id="selected-date-text" style="margin:5px 0;"></h4>
+                <table><thead><tr><th>名前</th><th>素点</th><th>累積</th></tr></thead><tbody id="date-table-body"></tbody></table>
+            </div>
+        </div>
+
         <div class="card">
-            <h3>児童の累積ポイント</h3>
-            <table>
-                <thead><tr><th>名前</th><th>累積</th><th>状況</th></tr></thead>
-                <tbody id="teacher-list"></tbody>
-            </table>
+            <h3 style="margin-top:0;">個人の軌跡（児童から見る）</h3>
+            <select id="teacher-student-select" onchange="renderIndividualTrace()" style="margin-bottom:10px;"></select>
+            <div id="individual-trace">
+                <table><thead><tr><th>日付</th><th>素点</th></tr></thead><tbody id="trace-table-body"></tbody></table>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-    let names = []; let pointsMap = {}; let allPoints = [];
+    let names = []; let pointsMap = {}; let historyData = [];
     let myHistory = JSON.parse(localStorage.getItem('kanji_simple_history') || '[]');
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('test-date').value = today;
+
+    // 初期化
+    document.getElementById('test-date').value = new Date().toISOString().split('T')[0];
+    const scoreSelect = document.getElementById('test-score');
+    for(let i=20; i>=0; i--) {
+        const opt = document.createElement('option');
+        opt.value = i; opt.textContent = i + "点";
+        scoreSelect.appendChild(opt);
+    }
 
     async function init() {
         try {
             const res = await fetch(ENDPOINT_URL);
             const data = await res.json();
-            names = data.names; pointsMap = data.pointsMap; allPoints = data.allPoints;
-            const select = document.getElementById('student-name');
-            select.innerHTML = '<option value="">-- 名前を選択 --</option>';
-            names.forEach(n => {
-                const opt = document.createElement('option');
-                opt.value = n; opt.textContent = n; select.appendChild(opt);
+            names = data.names; pointsMap = data.pointsMap; historyData = data.historyData;
+            
+            const selects = [document.getElementById('student-name'), document.getElementById('teacher-student-select')];
+            selects.forEach(s => {
+                s.innerHTML = '<option value="">-- 選択 --</option>';
+                names.forEach(n => s.insertAdjacentHTML('beforeend', `<option value="${n}">${n}</option>`));
             });
-        } catch (e) { alert("データの読み込みに失敗しました"); }
+        } catch (e) { console.error("データ取得エラー", e); }
     }
 
     function updateView() {
         const name = document.getElementById('student-name').value;
-        if(!name) return;
+        if(!name) {
+            document.getElementById('current-name-display').innerText = "名前を選んでね";
+            document.getElementById('total-pt').innerText = "0";
+            document.body.style.backgroundColor = "#ffffff";
+            return;
+        }
         const pt = pointsMap[name] || 0;
-        document.getElementById('current-name-display').innerText = name + " の累積ポイント";
+        const progress = pt % 100;
+        document.getElementById('current-name-display').innerText = name + " の累積";
         document.getElementById('total-pt').innerText = pt;
         
-        const next = 100 - pt;
-        document.getElementById('next-info').innerText = next > 0 ? `あと ${next} pt でチケット！` : "100ポイント達成！";
+        // 背景色
+        const lightness = 100 - (progress * 0.3); 
+        document.body.style.backgroundColor = `hsl(145, 40%, ${lightness}%)`;
+        
+        const next = 100 - progress;
+        document.getElementById('next-info').innerText = (progress === 0 && pt > 0) ? "100ポイント達成！" : `あと ${next} pt でチケット！`;
         document.getElementById('ticket-win').style.display = pt >= 100 ? 'block' : 'none';
     }
 
     async function saveData() {
-        const name = document.getElementById('student-name').value;
-        const score = document.getElementById('test-score').value;
-        const date = document.getElementById('test-date').value;
+        const payload = { 
+            name: document.getElementById('student-name').value, 
+            score: Number(document.getElementById('test-score').value), 
+            date: document.getElementById('test-date').value 
+        };
+        if(!payload.name) return alert("名前を選んでください");
 
-        if(!name || score === "" || !date) return alert("全部入力してね！");
-        if(score < 0 || score > 20) return alert("点数は0〜20の間で入力してね");
-
-        const payload = { name, score: Number(score), date };
-        
         try {
             const res = await fetch(ENDPOINT_URL, { method: 'POST', body: JSON.stringify(payload) });
             const result = await res.json();
             
-            // ローカル保存
-            myHistory.push(payload);
-            localStorage.setItem('kanji_simple_history', JSON.stringify(myHistory));
-
-            if(result.newTotal >= 100 && pointsMap[name] < 100) {
-                confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
-                alert("おめでとう！100ポイント達成！");
-            } else {
-                alert(score + "ポイント貯まりました！");
-            }
-            location.reload();
-        } catch (e) { alert("保存に失敗しました"); }
-    }
-
-    function authTeacher() {
-        if(prompt("パスワード") === "snsei") {
-            showScreen('teacher');
-            const tbody = document.getElementById('teacher-list');
-            tbody.innerHTML = allPoints.map(p => `<tr><td>${p.name}</td><td>${p.point}</td><td>${p.point>=100?'🎫獲得':(100-p.point)+'点'}</td></tr>`).join('');
-        } else { alert("パスワードが違います"); }
-    }
-
-    function showScreen(id) {
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        document.getElementById('screen-' + id).classList.add('active');
-        if(id === 'stats') renderChart();
-    }
-
-    function renderChart() {
-        const ctx = document.getElementById('scoreChart').getContext('2d');
-        if(window.myChart) window.myChart.destroy();
-        window.myChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: myHistory.map(h => h.date),
-                datasets: [{ label: '点数', data: myHistory.map(h => h.score), borderColor: '#27ae60', tension: 0.3 }]
-            },
-            options: { scales: { y: { min: 0, max: 20 } } }
-        });
-    }
-
-    window.onload = init;
-</script>
-</body>
-</html>
+            // 紙吹雪演出（100点
